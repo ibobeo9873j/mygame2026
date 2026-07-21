@@ -683,7 +683,7 @@ function updatePlayer(dt){
   player.vel.y -= 20*dt;
   if (player.vel.y < -30) player.vel.y=-30;
   if (keys['Space'] && player.onGround){ player.vel.y=7.2; player.onGround=false; }
-
+  
   tryMove('x', move.x);
   tryMove('z', move.z);
   tryMove('y', player.vel.y*dt);
@@ -691,11 +691,6 @@ function updatePlayer(dt){
   const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
   player.height += (targetHeight - player.height) * Math.min(1, dt*10);
 
-  if (player.pos.y < -10){ player.pos.set(0.5, terrainHeight(0,0)+3, 0.5); player.vel.set(0,0,0); }
-}
-  tryMove('x', move.x);
-  tryMove('z', move.z);
-  tryMove('y', player.vel.y*dt);
   if (player.pos.y < -10){ player.pos.set(0.5, terrainHeight(0,0)+3, 0.5); player.vel.set(0,0,0); }
 }
 
