@@ -265,7 +265,8 @@ const player = {
   sprinting:false,
 
   health:20,
-  maxHealth:20
+  maxHealth:20,
+  fallStartY:20
 };const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
 const bodyGroup = new THREE.Group();
 scene.add(bodyGroup);
@@ -780,7 +781,11 @@ function updatePlayer(dt){
 
   player.vel.y -= 20*dt;
   if (player.vel.y < -30) player.vel.y=-30;
-  if (keys['Space'] && player.onGround){ player.vel.y=7.2; player.onGround=false; }
+ if (keys['Space'] && player.onGround){
+    player.vel.y = 7.2;
+    player.onGround = false;
+    player.fallStartY = player.pos.y;
+}
   
   tryMove('x', move.x);
   tryMove('z', move.z);
