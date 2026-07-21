@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <title>Voxel Craft</title>
 <style>
-  /* ===== PLAYER UI ===== */
-
-#playerUI{
+ #playerUI{
     position:fixed;
     top:12px;
     right:12px;
-    z-index:1000;
+    z-index:99999;
     color:white;
-    font-family:Arial,sans-serif;
-    user-select:none;
+    font-size:28px;
+    pointer-events:none;
 }
-
+#healthBar{
+    text-shadow:2px 2px 4px #000;
+}
 #healthBar{
     font-size:28px;
     text-shadow:2px 2px 3px black;
