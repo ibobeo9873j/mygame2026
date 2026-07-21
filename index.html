@@ -787,55 +787,22 @@ function updatePlayer(dt){
     player.onGround = false;
     player.fallStartY = player.pos.y;
 }
-  if (player.onGround && !player.tookFallDamage) {
-
-    const fall = player.fallStartY - player.pos.y;
-
-    if (fall > 3) {
-
-        const damage = Math.floor(fall - 3);
-
-        player.health -= damage;
-
-        if (player.health < 0)
-            player.health = 0;
-
-    }
-
-    player.tookFallDamage = true;
-
-}
 
 if (!player.onGround) {
     player.tookFallDamage = false;
 }
   tryMove('x', move.x);
-  tryMove('z', move.z);
-  tryMove('y', player.vel.y*dt);
+tryMove('z', move.z);
+tryMove('y', player.vel.y*dt);
 
-  const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
-  player.height += (targetHeight - player.height) * Math.min(1, dt*10);
-if (player.onGround){
+const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
+player.height += (targetHeight - player.height) * Math.min(1, dt*10);
 
-    const fallDistance = player.fallStartY - player.pos.y;
-
-    if(fallDistance > 3){
-
-        const damage = Math.floor(fallDistance - 3);
-
-        player.health -= damage;
-
-        if(player.health < 0)
-            player.health = 0;
-
-    }
-
-    player.fallStartY = player.pos.y;
-
+if (player.pos.y < -10){
+    player.pos.set(0.5, terrainHeight(0,0)+3, 0.5);
+    player.vel.set(0,0,0);
 }
-  if (player.pos.y < -10){ player.pos.set(0.5, terrainHeight(0,0)+3, 0.5); player.vel.set(0,0,0); }
 }
-
 function updateCamera(){
   bodyGroup.position.copy(player.pos);
   bodyGroup.rotation.y = player.yaw;
