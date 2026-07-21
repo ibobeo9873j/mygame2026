@@ -115,6 +115,14 @@ const ITEM_NAME = { 100:'막대기', 101:'나무 곡괭이', 108:'나무 도끼'
 function colorOf(id){ return BLOCK_COLOR[id] !== undefined ? BLOCK_COLOR[id] : ITEM_COLOR[id]; }
 function nameOf(id){ return BLOCK_NAME[id] !== undefined ? BLOCK_NAME[id] : ITEM_NAME[id]; }
 const PICKAXE_TIER = { 101:1, 102:2, 106:3, 107:4 };
+const MINE_TIME_BASE = 0.6; // 맨손 기본 채굴 시간(초)
+const MINE_SPEED_MULT = { 101:2, 102:3.5, 106:5, 107:7 }; // 곡괭이 등급별 배속
+function getMineTime(blockId, heldItemId){
+  const mult = MINE_SPEED_MULT[heldItemId] || 1;
+  let base = MINE_TIME_BASE;
+  if (blockId===3 || blockId===9 || blockId===10 || blockId===11) base = 1.2; // 돌/광석류는 더 오래 걸림
+  return base / mult;
+}
 const BLOCK_MIN_TIER = { 3:1, 9:1, 10:2, 11:3 };
 function canMine(blockId, heldItemId){
   const minTier = BLOCK_MIN_TIER[blockId];
@@ -592,6 +600,8 @@ function updateDroppedItems(dt){
   }
 }
 
+let miningProgress = 0, miningTarget = null, isMining = false;
+let handSwingTime = 0;
 let targetHighlight;
 (function(){
   const geo=new THREE.BoxGeometry(1.02,1.02,1.02);
@@ -601,21 +611,17 @@ let targetHighlight;
   scene.add(targetHighlight);
 })();
 
+let mouseDown = false, mouseButton = -1;
+
 renderer.domElement.addEventListener('mousedown', e=>{
   if (!started || panelOpen) return;
   if (document.pointerLockElement !== renderer.domElement) return;
-  const hit = raycastBlocks(6);
-  if (!hit) return;
-  if (e.button===0){
-    const [x,y,z]=hit.block;
-    const id=getBlock(x,y,z);
-    if (id===0 || id===8) return;
-    setBlock(x,y,z,0);
-    rebuildChunkAndNeighborsAt(x,z);
-    const held=hotbar[selectedSlot];
-    const heldId = held?held.id:null;
-    if (canMine(id, heldId)) spawnDroppedItem(dropForBlock(id), x+0.5, y+0.5, z+0.5);
-  } else if (e.button===2){
+  mouseDown = true;
+  mouseButton = e.button;
+
+  if (e.button===2){
+    const hit = raycastBlocks(6);
+    if (!hit) return;
     const [x,y,z]=hit.block;
     const id=getBlock(x,y,z);
     if (id===7){ openPanel('table'); return; }
@@ -631,7 +637,47 @@ renderer.domElement.addEventListener('mousedown', e=>{
     rebuildChunkAndNeighborsAt(px,pz);
   }
 });
+document.addEventListener('mouseup', e=>{
+  mouseDown = false;
+  mouseButton = -1;
+  miningProgress = 0;
+  miningTarget = null;
+});
 renderer.domElement.addEventListener('contextmenu', e=> e.preventDefault());
+
+function updateMining(dt){
+  isMining = false;
+  if (!started || panelOpen || !mouseDown || mouseButton !== 0){
+    miningProgress = 0; miningTarget = null;
+    return;
+  }
+  if (document.pointerLockElement !== renderer.domElement) return;
+  const hit = raycastBlocks(6);
+  if (!hit){ miningProgress = 0; miningTarget = null; return; }
+
+  const [x,y,z] = hit.block;
+  const id = getBlock(x,y,z);
+  if (id===0 || id===8){ miningProgress = 0; miningTarget = null; return; }
+
+  const key2 = x+','+y+','+z;
+  if (miningTarget !== key2){ miningTarget = key2; miningProgress = 0; }
+
+  isMining = true;
+  handSwingTime += dt;
+
+  const held = hotbar[selectedSlot];
+  const heldId = held ? held.id : null;
+  const mineTime = getMineTime(id, heldId);
+  miningProgress += dt;
+
+  if (miningProgress >= mineTime){
+    setBlock(x,y,z,0);
+    rebuildChunkAndNeighborsAt(x,z);
+    if (canMine(id, heldId)) spawnDroppedItem(dropForBlock(id), x+0.5, y+0.5, z+0.5);
+    miningProgress = 0;
+    miningTarget = null;
+  }
+}
 
 function solid(x,y,z){ return getBlock(Math.floor(x),Math.floor(y),Math.floor(z)) !== 0; }
 function tryMove(axis, delta){
@@ -772,6 +818,8 @@ function animate(){
     updateTargetHighlight();
     updateDroppedItems(dt);
     updateDayNightCycle(dt);
+    if (!panelOpen) updateMining(dt);
+    updateHandSwing(dt);
     frameCount++;
     if (frameCount % 10 === 0) refreshChunkQueue();
     processChunkQueue();
