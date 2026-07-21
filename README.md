@@ -716,4 +716,53 @@ function updateDayNightCycle(dt){
   const t = gameTime / DAY_LENGTH; // 0~1
   const angle = t * Math.PI * 2;
 
-  const sunDist = 150
+    const sunDist = 150;
+  const sunHeight = Math.sin(angle);
+  sunMesh.position.set(Math.cos(angle)*sunDist, sunHeight*sunDist, -50);
+  moonMesh.position.set(-Math.cos(angle)*sunDist, -sunHeight*sunDist, -50);
+
+  const dayFactor = Math.max(0, sunHeight);
+  const nightFactor = Math.max(0, -sunHeight);
+
+  sun.intensity = dayFactor * 1.0;
+  sun.position.copy(sunMesh.position);
+  moonLight.intensity = nightFactor * 0.35;
+  moonLight.position.copy(moonMesh.position);
+  hemi.intensity = 0.3 + dayFactor*0.6;
+
+  const skyDay = new THREE.Color(0x87CEEB);
+  const skyNight = new THREE.Color(0x0a0a2a);
+  const mixT = (1 - dayFactor) * 0.9 + nightFactor*0.1;
+  const skyColor = skyDay.clone().lerp(skyNight, Math.min(1, nightFactor*1.4));
+  scene.background = skyColor;
+  scene.fog.color = skyColor;
+
+  if (dayFactor > 0.15){ clockTextEl.textContent='낮'; clockIconEl.style.background='#ffd34d'; }
+  else if (nightFactor > 0.15){ clockTextEl.textContent='밤'; clockIconEl.style.background='#8fa8ff'; }
+  else { clockTextEl.textContent='해질녘'; clockIconEl.style.background='#ff8f4d'; }
+}
+
+let frameCount = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (started){
+    if (!panelOpen) updatePlayer(dt);
+    updateCamera();
+    updateTargetHighlight();
+    updateDroppedItems(dt);
+    updateDayNightCycle(dt);
+    frameCount++;
+    if (frameCount % 10 === 0) refreshChunkQueue();
+    processChunkQueue();
+  }
+  renderer.render(scene, camera);
+}
+
+renderAll();
+ensureDataAroundPlayer();
+refreshChunkQueue();
+animate();
+</script>
+</body>
+</html>
