@@ -872,12 +872,7 @@ function animate(){
     processChunkQueue();
   }
   renderer.render(scene, camera);
-  function updatePlayerUI(){
-    const healthBar = document.getElementById('healthBar');
-    if (!healthBar) return;
-
-    healthBar.textContent = '❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️';
-}
+ updatePlayerUI()
 }
 
 renderAll();
@@ -904,9 +899,9 @@ animate();
     healthBar.textContent = hearts;
 
 }
-<div id="playerUI">
+</script>
+  <div id="playerUI">
     <div id="healthBar"></div>
 </div>
-
 </body>
 </html>
