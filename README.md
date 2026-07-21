@@ -217,7 +217,8 @@ window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-const player = { pos:new THREE.Vector3(0,20,0), vel:new THREE.Vector3(0,0,0), yaw:0, pitch:0, onGround:false, width:0.6, height:1.8 };
+const player = { pos:new THREE.Vector3(0,20,0), vel:new THREE.Vector3(0,0,0), yaw:0, pitch:0, onGround:false, width:0.6, height:1.8, crouching:false, sprinting:false };
+const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
 const bodyGroup = new THREE.Group();
 scene.add(bodyGroup);
 function bodyPart(w,h,d,color,y){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.y=y; return m; }
@@ -517,6 +518,13 @@ document.addEventListener('keydown', e=>{
   if (!panelOpen && num>=1 && num<=9){ selectedSlot=num-1; renderAll(); }
 });
 document.addEventListener('keyup', e=> keys[e.code]=false);
+
+document.addEventListener('keydown', e=>{
+  if (e.code==='ShiftLeft' || e.code==='ShiftRight') player.crouching = true;
+});
+document.addEventListener('keyup', e=>{
+  if (e.code==='ShiftLeft' || e.code==='ShiftRight') player.crouching = false;
+});
 document.addEventListener('mousemove', e=>{
   if (document.pointerLockElement!==renderer.domElement) return;
   player.yaw -= e.movementX*0.0022;
@@ -655,7 +663,6 @@ function tryMove(axis, delta){
 
 const clock = new THREE.Clock();
 function updatePlayer(dt){
-  const speed=4.3;
   const forward=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
   const right=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
   let move=new THREE.Vector3();
@@ -663,10 +670,29 @@ function updatePlayer(dt){
   if (keys['KeyS']) move.sub(forward);
   if (keys['KeyD']) move.add(right);
   if (keys['KeyA']) move.sub(right);
-  if (move.lengthSq()>0) move.normalize().multiplyScalar(speed*dt);
+  const isMoving = move.lengthSq() > 0;
+
+  player.sprinting = (keys['ControlLeft'] || keys['ControlRight']) && isMoving && !player.crouching;
+
+  let speed = 4.3;
+  if (player.crouching) speed = 2.0;
+  else if (player.sprinting) speed = 7.0;
+
+  if (isMoving) move.normalize().multiplyScalar(speed*dt);
+
   player.vel.y -= 20*dt;
   if (player.vel.y < -30) player.vel.y=-30;
   if (keys['Space'] && player.onGround){ player.vel.y=7.2; player.onGround=false; }
+
+  tryMove('x', move.x);
+  tryMove('z', move.z);
+  tryMove('y', player.vel.y*dt);
+
+  const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
+  player.height += (targetHeight - player.height) * Math.min(1, dt*10);
+
+  if (player.pos.y < -10){ player.pos.set(0.5, terrainHeight(0,0)+3, 0.5); player.vel.set(0,0,0); }
+}
   tryMove('x', move.x);
   tryMove('z', move.z);
   tryMove('y', player.vel.y*dt);
