@@ -232,6 +232,9 @@ scene.background = new THREE.Color(0x87CEEB);
 scene.fog = new THREE.Fog(0x87CEEB,40,95);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 300);
 const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.physicallyCorrectLights = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 document.body.appendChild(renderer.domElement);
@@ -849,7 +852,7 @@ function updateTargetHighlight(){
 }
 
 // ---------- 낮/밤 사이클 ----------
-const DAY_LENGTH = 120; // 하루(낮+밤) 전체 길이(초)
+const DAY_LENGTH = 300; // 하루(낮+밤) 전체 길이(초)
 let gameTime = DAY_LENGTH*0.25; // 아침부터 시작
 const clockTextEl = document.getElementById('clockText');
 const clockIconEl = document.getElementById('clockIcon');
