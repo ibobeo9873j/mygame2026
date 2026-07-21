@@ -720,18 +720,6 @@ function updateHandSwing(dt){
     handGroup.position.y += (-0.4 - handGroup.position.y) * 0.2;
   }
 }
-
-function updateHandSwing(dt){
-  if (isMining){
-    const swing = Math.sin(handSwingTime * 14) * 0.18;
-    handGroup.rotation.x = -0.5 + swing;
-    handGroup.position.y = -0.4 - Math.abs(swing)*0.05;
-  } else {
-    handSwingTime = 0;
-    handGroup.rotation.x += (0 - handGroup.rotation.x) * 0.2;
-    handGroup.position.y += (-0.4 - handGroup.position.y) * 0.2;
-  }
-}
   
 function updatePlayer(dt){
   const forward=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
