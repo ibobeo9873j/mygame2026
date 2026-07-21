@@ -267,6 +267,7 @@ const player = {
   health:20,
   maxHealth:20,
   fallStartY:20
+  tookFallDamage:false
 };const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
 const bodyGroup = new THREE.Group();
 scene.add(bodyGroup);
@@ -786,7 +787,28 @@ function updatePlayer(dt){
     player.onGround = false;
     player.fallStartY = player.pos.y;
 }
-  
+  if (player.onGround && !player.tookFallDamage) {
+
+    const fall = player.fallStartY - player.pos.y;
+
+    if (fall > 3) {
+
+        const damage = Math.floor(fall - 3);
+
+        player.health -= damage;
+
+        if (player.health < 0)
+            player.health = 0;
+
+    }
+
+    player.tookFallDamage = true;
+
+}
+
+if (!player.onGround) {
+    player.tookFallDamage = false;
+}
   tryMove('x', move.x);
   tryMove('z', move.z);
   tryMove('y', player.vel.y*dt);
