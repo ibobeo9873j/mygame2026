@@ -236,12 +236,26 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.physicallyCorrectLights = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 document.body.appendChild(renderer.domElement);
 
 const hemi = new THREE.HemisphereLight(0xffffff,0x6b6b6b,0.9);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff,1.0);
+sun.castShadow = true;
+
+sun.shadow.mapSize.width = 2048;
+sun.shadow.mapSize.height = 2048;
+
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 300;
+
+sun.shadow.camera.left = -80;
+sun.shadow.camera.right = 80;
+sun.shadow.camera.top = 80;
+sun.shadow.camera.bottom = -80;
 scene.add(sun);
 const moonLight = new THREE.DirectionalLight(0x8fa8ff,0.0);
 scene.add(moonLight);
@@ -274,7 +288,18 @@ const player = {
 };const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
 const bodyGroup = new THREE.Group();
 scene.add(bodyGroup);
-function bodyPart(w,h,d,color,y){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.y=y; return m; }
+function bodyPart(w,h,d,color,y){
+    const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w,h,d),
+        new THREE.MeshLambertMaterial({color})
+    );
+
+    m.castShadow = true;
+    m.receiveShadow = true;
+
+    m.position.y = y;
+    return m;
+}
 const skin=0xd9a066, shirt=0x3d6fa8, pants=0x35405c;
 bodyGroup.add(bodyPart(0.5,0.7,0.3,shirt,0.55));
 bodyGroup.add(bodyPart(0.45,0.45,0.45,skin,1.05));
@@ -335,6 +360,10 @@ function buildChunkMesh(cx,cz){
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
   const material = new THREE.MeshLambertMaterial({vertexColors:true});
   const mesh = new THREE.Mesh(geometry, material);
+
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
   scene.add(mesh);
   chunkMeshes.set(ck, mesh);
 }
