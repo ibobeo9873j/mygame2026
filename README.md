@@ -1,4 +1,4 @@
-# mygame2026
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
