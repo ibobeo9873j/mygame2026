@@ -28,6 +28,16 @@ canvas { display:block; }
 #crosshair::before { top:9px; left:0; width:20px; height:2px; }
 #crosshair::after { left:9px; top:0; width:2px; height:20px; }
 #hud { position:fixed; bottom:0; left:0; width:100%; display:flex; flex-direction:column; align-items:center; z-index:15; pointer-events:none; }
+ #healthBar{
+    position:absolute;
+    left:50%;
+    bottom:90px;
+    transform:translateX(-50%);
+    font-size:28px;
+    text-shadow:2px 2px 3px black;
+    pointer-events:none;
+    white-space:nowrap;
+}
 .slot { width:52px; height:52px; margin:3px; background:rgba(20,20,20,0.55); border:3px solid #555; position:relative; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
 .slot.selected { border-color:#fff; }
 .slot .swatch { width:34px; height:34px; border-radius:3px; }
@@ -70,8 +80,10 @@ canvas { display:block; }
 <div id="hint">E:인벤토리 B:보관함(7x7) 1-9:아이템선택 F5:시점전환<br>좌클릭:채굴 우클릭:설치/상호작용<br>낮과 밤이 순환합니다</div>
 <div id="clockWrap"><div id="clockIcon"></div><span id="clockText">낮</span></div>
 <div id="crosshair"></div>
-<div id="hud"><div id="hotbar"></div></div>
-
+<div id="hud">
+    <div id="healthBar"></div>
+    <div id="hotbar"></div>
+</div>
 <div id="panelOverlay">
 <div class="panel" id="invPanel">
 <h2>인벤토리</h2>
@@ -241,8 +253,20 @@ window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-const player = { pos:new THREE.Vector3(0,20,0), vel:new THREE.Vector3(0,0,0), yaw:0, pitch:0, onGround:false, width:0.6, height:1.8, crouching:false, sprinting:false };
-const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
+const player = {
+  pos:new THREE.Vector3(0,20,0),
+  vel:new THREE.Vector3(0,0,0),
+  yaw:0,
+  pitch:0,
+  onGround:false,
+  width:0.6,
+  height:1.8,
+  crouching:false,
+  sprinting:false,
+
+  health:20,
+  maxHealth:20
+};const STAND_HEIGHT = 1.8, CROUCH_HEIGHT = 1.4;
 const bodyGroup = new THREE.Group();
 scene.add(bodyGroup);
 function bodyPart(w,h,d,color,y){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.y=y; return m; }
@@ -724,12 +748,6 @@ function tryMove(axis, delta){
 }
 
 const clock = new THREE.Clock();
-  // ===== Player Stats =====
-const playerStats = {
-    maxHealth: 20,
-    health: 20
-};
-  
 function updateHandSwing(dt){
   if (isMining){
     const swing = Math.sin(handSwingTime * 14) * 0.18;
@@ -879,7 +897,7 @@ renderAll();
 ensureDataAroundPlayer();
 refreshChunkQueue();
 animate();
-  function updatePlayerUI(){
+function updatePlayerUI(){
 
     const healthBar = document.getElementById("healthBar");
 
@@ -889,19 +907,18 @@ animate();
 
     for (let i = 0; i < 10; i++) {
 
-        if (playerStats.health >= (i + 1) * 2)
+        if (player.health >= (i + 1) * 2)
             hearts += "❤️";
+        else if(player.health == i*2+1)
+            hearts += "💖";
         else
             hearts += "🖤";
 
     }
 
-    healthBar.textContent = hearts;
-
+    healthBar.innerHTML = hearts;
 }
 </script>
-  <div id="playerUI">
-    <div id="healthBar"></div>
 </div>
 </body>
 </html>
