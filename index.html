@@ -793,7 +793,24 @@ function updatePlayer(dt){
 
   const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
   player.height += (targetHeight - player.height) * Math.min(1, dt*10);
+if (player.onGround){
 
+    const fallDistance = player.fallStartY - player.pos.y;
+
+    if(fallDistance > 3){
+
+        const damage = Math.floor(fallDistance - 3);
+
+        player.health -= damage;
+
+        if(player.health < 0)
+            player.health = 0;
+
+    }
+
+    player.fallStartY = player.pos.y;
+
+}
   if (player.pos.y < -10){ player.pos.set(0.5, terrainHeight(0,0)+3, 0.5); player.vel.set(0,0,0); }
 }
 
