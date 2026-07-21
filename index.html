@@ -755,6 +755,9 @@ let targetHighlight;
   scene.add(targetHighlight);
 })();
 
+// ---------- 낮/밤 시간 기본 변수 ----------
+const DAY_LENGTH = 60;
+let gameTime = DAY_LENGTH * 0.65;
 
 // ---------- 몬스터 시스템 ----------
 const monsters = [];
@@ -1474,9 +1477,7 @@ function updateTargetHighlight(){
 
 // ---------- 낮/밤 사이클 ----------
 const DAY_LENGTH = 60; // 하루(낮+밤) 전체 길이(초)
-let gameTime = DAY_LENGTH*0.25; // 아침부터 시작
-const clockTextEl = document.getElementById('clockText');
-const clockIconEl = document.getElementById('clockIcon');
+let gameTime = DAY_LENGTH * 0.65; // 아침부터 시작
 
 function updateDayNightCycle(dt){
   gameTime = (gameTime + dt) % DAY_LENGTH;
@@ -1523,7 +1524,9 @@ function animate(){
     updateDayNightCycle(dt);
 
     // 몬스터 이동, 추적, 공격, 생성 처리
-    updateMonsters(dt);
+    if (typeof updateMonsters === 'function') {
+      updateMonsters(dt);
+    }
 
     if (!panelOpen) updateMining(dt);
 
@@ -1541,7 +1544,7 @@ function animate(){
   renderer.render(scene, camera);
 
   updatePlayerUI();
-}
+}          
 
 renderAll();
 ensureDataAroundPlayer();
