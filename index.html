@@ -6,15 +6,15 @@
 <style>
  #playerUI{
     position:fixed;
-    top:12px;
-    right:12px;
-    z-index:99999;
-    color:white;
-    font-size:28px;
-    pointer-events:none;
+    top: 12px;
+    right: 12px;
+    z-index: 99999;
+    color: white;
+    font-size: 28px;
+    pointer-events: none;
 }
 #healthBar{
-    text-shadow:2px 2px 4px #000;
+    text-shadow: 2px 2px 4px #000;
 }
 #healthBar{
     font-size:28px;
@@ -872,7 +872,12 @@ function animate(){
     processChunkQueue();
   }
   renderer.render(scene, camera);
-  updatePlayerUI();
+  function updatePlayerUI(){
+    const healthBar = document.getElementById('healthBar');
+    if (!healthBar) return;
+
+    healthBar.textContent = '❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️';
+}
 }
 
 renderAll();
@@ -899,9 +904,9 @@ animate();
     healthBar.textContent = hearts;
 
 }
-</script>
-  <div id="playerUI">
+<div id="playerUI">
     <div id="healthBar"></div>
 </div>
+
 </body>
 </html>
