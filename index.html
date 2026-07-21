@@ -708,6 +708,19 @@ function tryMove(axis, delta){
 }
 
 const clock = new THREE.Clock();
+  
+function updateHandSwing(dt){
+  if (isMining){
+    const swing = Math.sin(handSwingTime * 14) * 0.18;
+    handGroup.rotation.x = -0.5 + swing;
+    handGroup.position.y = -0.4 - Math.abs(swing)*0.05;
+  } else {
+    handSwingTime = 0;
+    handGroup.rotation.x += (0 - handGroup.rotation.x) * 0.2;
+    handGroup.position.y += (-0.4 - handGroup.position.y) * 0.2;
+  }
+}
+  
 function updatePlayer(dt){
   const forward=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
   const right=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
@@ -769,6 +782,19 @@ function updateTargetHighlight(){
   if (hit){
     targetHighlight.visible=true;
     targetHighlight.position.set(hit.block[0]+0.5, hit.block[1]+0.5, hit.block[2]+0.5);
+    if (isMining && miningTarget === hit.block.join(',')){
+      const held = hotbar[selectedSlot];
+      const heldId = held ? held.id : null;
+      const id = getBlock(hit.block[0], hit.block[1], hit.block[2]);
+      const mineTime = getMineTime(id, heldId);
+      const progress = Math.min(1, miningProgress / mineTime);
+      const scale = 1.001 + progress*0.03;
+      targetHighlight.scale.set(scale,scale,scale);
+      targetHighlight.material.color.setHex(0xff3333);
+    } else {
+      targetHighlight.scale.set(1,1,1);
+      targetHighlight.material.color.setHex(0x000000);
+    }
   } else targetHighlight.visible=false;
 }
 
