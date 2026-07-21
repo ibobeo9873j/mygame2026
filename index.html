@@ -125,20 +125,90 @@ const BLOCK = { AIR:0, GRASS:1, DIRT:2, STONE:3, LOG:4, LEAVES:5, PLANKS:6, TABL
 const BLOCK_COLOR = { 1:0x5b9c3f, 2:0x7a5230, 3:0x8a8a8a, 4:0x5c4326, 5:0x3f7a2e, 6:0xb98a4f, 7:0x9c5a2e, 8:0x2b2b2b, 9:0x4a4a4a, 10:0xcaa472, 11:0x59d8d3 };
 const BLOCK_NAME = { 1:'잔디 블록', 2:'흙', 3:'돌', 4:'통나무', 5:'나뭇잎', 6:'판자', 7:'제작대', 8:'기반암', 9:'석탄 광석', 10:'철 광석', 11:'다이아몬드 광석' };
 
-const ITEM = { STICK:100, WOOD_PICKAXE:101, STONE_PICKAXE:102, COAL:103, IRON:104, DIAMOND:105, IRON_PICKAXE:106, DIAMOND_PICKAXE:107,
-  WOOD_AXE:108, STONE_AXE:109, IRON_AXE:110, DIAMOND_AXE:111, WOOD_SHOVEL:112, STONE_SHOVEL:113, IRON_SHOVEL:114, DIAMOND_SHOVEL:115,
-  WOOD_SWORD:116, STONE_SWORD:117, IRON_SWORD:118, DIAMOND_SWORD:119 };
+const ITEM = { 
+  STICK:100, 
+  WOOD_PICKAXE:101, 
+  STONE_PICKAXE:102, 
+  COAL:103, 
+  IRON:104, 
+  DIAMOND:105, 
+  IRON_PICKAXE:106, 
+  DIAMOND_PICKAXE:107,
+  WOOD_AXE:108, 
+  STONE_AXE:109, 
+  IRON_AXE:110, 
+  DIAMOND_AXE:111, 
+  WOOD_SHOVEL:112, 
+  STONE_SHOVEL:113, 
+  IRON_SHOVEL:114, 
+  DIAMOND_SHOVEL:115,
+  WOOD_SWORD:116, 
+  STONE_SWORD:117, 
+  IRON_SWORD:118, 
+  DIAMOND_SWORD:119,
+
+  // 몬스터 드롭 아이템
+  ROTTEN_FLESH:120
+};
 const TIER_COLOR = { wood:0xd2a86a, stone:0xb0b0b0, iron:0xe3e3e3, diamond:0x8ff5f0 };
-const ITEM_COLOR = { 100:0xa9784a, 101:TIER_COLOR.wood, 108:TIER_COLOR.wood, 112:TIER_COLOR.wood, 116:TIER_COLOR.wood,
-  102:TIER_COLOR.stone, 109:TIER_COLOR.stone, 113:TIER_COLOR.stone, 117:TIER_COLOR.stone,
-  106:TIER_COLOR.iron, 110:TIER_COLOR.iron, 114:TIER_COLOR.iron, 118:TIER_COLOR.iron,
-  107:TIER_COLOR.diamond, 111:TIER_COLOR.diamond, 115:TIER_COLOR.diamond, 119:TIER_COLOR.diamond,
-  103:0x2a2a2a, 104:0xe0c39a, 105:0x7fe8e3 };
-const ITEM_NAME = { 100:'막대기', 101:'나무 곡괭이', 108:'나무 도끼', 112:'나무 삽', 116:'나무 검',
-  102:'돌 곡괭이', 109:'돌 도끼', 113:'돌 삽', 117:'돌 검',
-  106:'철 곡괭이', 110:'철 도끼', 114:'철 삽', 118:'철 검',
-  107:'다이아몬드 곡괭이', 111:'다이아몬드 도끼', 115:'다이아몬드 삽', 119:'다이아몬드 검',
-  103:'석탄', 104:'철', 105:'다이아몬드' };
+const ITEM_COLOR = { 
+  100:0xa9784a, 
+  101:TIER_COLOR.wood, 
+  108:TIER_COLOR.wood, 
+  112:TIER_COLOR.wood, 
+  116:TIER_COLOR.wood,
+
+  102:TIER_COLOR.stone, 
+  109:TIER_COLOR.stone, 
+  113:TIER_COLOR.stone, 
+  117:TIER_COLOR.stone,
+
+  106:TIER_COLOR.iron, 
+  110:TIER_COLOR.iron, 
+  114:TIER_COLOR.iron, 
+  118:TIER_COLOR.iron,
+
+  107:TIER_COLOR.diamond, 
+  111:TIER_COLOR.diamond, 
+  115:TIER_COLOR.diamond, 
+  119:TIER_COLOR.diamond,
+
+  103:0x2a2a2a, 
+  104:0xe0c39a, 
+  105:0x7fe8e3,
+
+  // 썩은 고기 색
+  120:0x6b3f2a 
+};
+const ITEM_NAME = { 
+  100:'막대기', 
+  101:'나무 곡괭이', 
+  108:'나무 도끼', 
+  112:'나무 삽', 
+  116:'나무 검',
+
+  102:'돌 곡괭이', 
+  109:'돌 도끼', 
+  113:'돌 삽', 
+  117:'돌 검',
+
+  106:'철 곡괭이', 
+  110:'철 도끼', 
+  114:'철 삽', 
+  118:'철 검',
+
+  107:'다이아몬드 곡괭이', 
+  111:'다이아몬드 도끼', 
+  115:'다이아몬드 삽', 
+  119:'다이아몬드 검',
+
+  103:'석탄', 
+  104:'철', 
+  105:'다이아몬드',
+
+  // 몬스터 드롭 아이템 이름
+  120:'썩은 고기' 
+};
 
 function colorOf(id){ return BLOCK_COLOR[id] !== undefined ? BLOCK_COLOR[id] : ITEM_COLOR[id]; }
 function nameOf(id){ return BLOCK_NAME[id] !== undefined ? BLOCK_NAME[id] : ITEM_NAME[id]; }
@@ -685,30 +755,554 @@ let targetHighlight;
   scene.add(targetHighlight);
 })();
 
+
+// ---------- 몬스터 시스템 ----------
+const monsters = [];
+const MAX_MONSTERS = 10;
+let monsterSpawnTimer = 0;
+
+const MONSTER = {
+  ZOMBIE: 'zombie'
+};
+
+// 검 데미지
+const SWORD_DAMAGE = {
+  116: 4,   // 나무 검
+  117: 6,   // 돌 검
+  118: 8,   // 철 검
+  119: 11   // 다이아몬드 검
+};
+
+// 도구 데미지
+const TOOL_DAMAGE = {
+  101: 2,   // 나무 곡괭이
+  102: 3,   // 돌 곡괭이
+  106: 4,   // 철 곡괭이
+  107: 5,   // 다이아몬드 곡괭이
+
+  108: 3,   // 나무 도끼
+  109: 4,   // 돌 도끼
+  110: 5,   // 철 도끼
+  111: 6,   // 다이아몬드 도끼
+
+  112: 1,   // 나무 삽
+  113: 2,   // 돌 삽
+  114: 3,   // 철 삽
+  115: 4    // 다이아몬드 삽
+};
+
+// 현재 시간이 밤인지 확인
+function isNightTime(){
+  const t = gameTime / DAY_LENGTH;
+  const angle = t * Math.PI * 2;
+  const sunHeight = Math.sin(angle);
+
+  return sunHeight < -0.15;
+}
+
+// 좀비 3D 모델 생성
+function createZombieMesh(){
+  const group = new THREE.Group();
+
+  const skinMat = new THREE.MeshLambertMaterial({ color: 0x3fbf5f });
+  const shirtMat = new THREE.MeshLambertMaterial({ color: 0x345a9c });
+  const pantsMat = new THREE.MeshLambertMaterial({ color: 0x2b2b55 });
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.8, 0.35),
+    shirtMat
+  );
+  body.position.y = 0.9;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(0.55, 0.55, 0.55),
+    skinMat
+  );
+  head.position.y = 1.55;
+  head.castShadow = true;
+  head.receiveShadow = true;
+  group.add(head);
+
+  const armL = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.7, 0.18),
+    skinMat
+  );
+  armL.position.set(-0.48, 0.95, -0.05);
+  armL.rotation.x = -0.8;
+  armL.castShadow = true;
+  armL.receiveShadow = true;
+  group.add(armL);
+
+  const armR = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.7, 0.18),
+    skinMat
+  );
+  armR.position.set(0.48, 0.95, -0.05);
+  armR.rotation.x = -0.8;
+  armR.castShadow = true;
+  armR.receiveShadow = true;
+  group.add(armR);
+
+  const legL = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.65, 0.22),
+    pantsMat
+  );
+  legL.position.set(-0.18, 0.3, 0);
+  legL.castShadow = true;
+  legL.receiveShadow = true;
+  group.add(legL);
+
+  const legR = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.65, 0.22),
+    pantsMat
+  );
+  legR.position.set(0.18, 0.3, 0);
+  legR.castShadow = true;
+  legR.receiveShadow = true;
+  group.add(legR);
+
+  return group;
+}
+
+// 플레이어 주변에 좀비 생성
+function spawnZombieNearPlayer(){
+  if (!isNightTime()) return;
+  if (monsters.length >= MAX_MONSTERS) return;
+
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 14 + Math.random() * 18;
+
+  const x = Math.floor(player.pos.x + Math.cos(angle) * dist);
+  const z = Math.floor(player.pos.z + Math.sin(angle) * dist);
+
+  const cx = Math.floor(x / CHUNK_SIZE);
+  const cz = Math.floor(z / CHUNK_SIZE);
+  generateChunkData(cx, cz);
+
+  const y = terrainHeight(x, z) + 1;
+
+  // 생성 위치가 비어 있어야 함
+  if (getBlock(x, y, z) !== 0) return;
+  if (getBlock(x, y + 1, z) !== 0) return;
+
+  const mesh = createZombieMesh();
+  mesh.position.set(x + 0.5, y, z + 0.5);
+  scene.add(mesh);
+
+  monsters.push({
+    type: MONSTER.ZOMBIE,
+    mesh: mesh,
+    health: 20,
+    maxHealth: 20,
+    speed: 2.1,
+    attackDamage: 2,
+    attackCooldown: 0,
+    hurtTimer: 0,
+    stepTimer: Math.random() * 10,
+    velY: 0
+  });
+}
+
+// 플레이어 데미지 처리
+function damagePlayer(amount){
+  player.health -= amount;
+
+  if (player.health < 0) {
+    player.health = 0;
+  }
+
+  if (player.health <= 0) {
+    respawnPlayer();
+  }
+}
+
+// 플레이어 리스폰
+function respawnPlayer(){
+  const h = terrainHeight(0, 0);
+
+  player.pos.set(0.5, h + 3, 0.5);
+  player.vel.set(0, 0, 0);
+  player.health = player.maxHealth;
+  player.onGround = false;
+}
+
+// 몬스터에게 데미지 주기
+function damageMonster(monster, amount){
+  monster.health -= amount;
+  monster.hurtTimer = 0.18;
+
+  // 맞았을 때 빨간색으로 표시
+  monster.mesh.traverse(obj => {
+    if (obj.material && obj.material.color) {
+      if (obj.userData.oldColor === undefined) {
+        obj.userData.oldColor = obj.material.color.getHex();
+      }
+      obj.material.color.setHex(0xff3333);
+    }
+  });
+
+  if (monster.health <= 0) {
+    killMonster(monster);
+  }
+}
+
+// 몬스터 사망 처리
+function killMonster(monster){
+  const index = monsters.indexOf(monster);
+
+  if (index !== -1) {
+    monsters.splice(index, 1);
+  }
+
+  const p = monster.mesh.position;
+
+  // 썩은 고기 드롭
+  spawnDroppedItem(ITEM.ROTTEN_FLESH, p.x, p.y + 0.7, p.z);
+
+  scene.remove(monster.mesh);
+
+  monster.mesh.traverse(obj => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) obj.material.dispose();
+  });
+}
+
+// 현재 들고 있는 아이템의 공격력 계산
+function getHeldAttackDamage(){
+  const held = hotbar[selectedSlot];
+
+  if (!held) return 1;
+
+  if (SWORD_DAMAGE[held.id]) {
+    return SWORD_DAMAGE[held.id];
+  }
+
+  if (TOOL_DAMAGE[held.id]) {
+    return TOOL_DAMAGE[held.id];
+  }
+
+  return 1;
+}
+
+// 플레이어가 바라보는 방향에 몬스터가 있는지 검사
+function raycastMonster(maxDist){
+  const origin = new THREE.Vector3(
+    player.pos.x,
+    player.pos.y + player.height * 0.85,
+    player.pos.z
+  );
+
+  const dir = getLookDir();
+
+  let bestMonster = null;
+  let bestDist = maxDist;
+
+  for (const monster of monsters) {
+    const center = monster.mesh.position.clone().add(
+      new THREE.Vector3(0, 0.95, 0)
+    );
+
+    const toMonster = center.clone().sub(origin);
+    const forwardDist = toMonster.dot(dir);
+
+    if (forwardDist < 0 || forwardDist > maxDist) {
+      continue;
+    }
+
+    const closestPoint = origin.clone().addScaledVector(dir, forwardDist);
+    const sideDist = closestPoint.distanceTo(center);
+
+    if (sideDist < 0.75 && forwardDist < bestDist) {
+      bestMonster = monster;
+      bestDist = forwardDist;
+    }
+  }
+
+  return bestMonster;
+}
+
+// 좌클릭 공격
+function tryAttackMonster(){
+  const monster = raycastMonster(4.2);
+
+  if (!monster) {
+    return false;
+  }
+
+  const damage = getHeldAttackDamage();
+  damageMonster(monster, damage);
+
+  handSwingTime += 0.25;
+
+  return true;
+}
+
+// 특정 위치가 막혀 있는지 확인
+function monsterBlocked(x, y, z){
+  return getBlock(
+    Math.floor(x),
+    Math.floor(y),
+    Math.floor(z)
+  ) !== 0;
+}
+
+// 몬스터 이동 처리
+function monsterTryMove(monster, dx, dz, dt){
+  const p = monster.mesh.position;
+
+  const width = 0.55;
+  const height = 1.8;
+
+  const nextX = p.x + dx;
+  const nextZ = p.z + dz;
+
+  let collideX = false;
+
+  for (const sy of [0.1, 0.9, height - 0.1]) {
+    if (
+      monsterBlocked(nextX - width / 2, p.y + sy, p.z - width / 2) ||
+      monsterBlocked(nextX + width / 2, p.y + sy, p.z - width / 2) ||
+      monsterBlocked(nextX - width / 2, p.y + sy, p.z + width / 2) ||
+      monsterBlocked(nextX + width / 2, p.y + sy, p.z + width / 2)
+    ) {
+      collideX = true;
+      break;
+    }
+  }
+
+  if (!collideX) {
+    p.x = nextX;
+  }
+
+  let collideZ = false;
+
+  for (const sy of [0.1, 0.9, height - 0.1]) {
+    if (
+      monsterBlocked(p.x - width / 2, p.y + sy, nextZ - width / 2) ||
+      monsterBlocked(p.x + width / 2, p.y + sy, nextZ - width / 2) ||
+      monsterBlocked(p.x - width / 2, p.y + sy, nextZ + width / 2) ||
+      monsterBlocked(p.x + width / 2, p.y + sy, nextZ + width / 2)
+    ) {
+      collideZ = true;
+      break;
+    }
+  }
+
+  if (!collideZ) {
+    p.z = nextZ;
+  }
+
+  // 간단한 중력
+  const belowBlock = getBlock(
+    Math.floor(p.x),
+    Math.floor(p.y - 0.05),
+    Math.floor(p.z)
+  );
+
+  if (belowBlock === 0) {
+    monster.velY -= 18 * dt;
+    if (monster.velY < -20) monster.velY = -20;
+    p.y += monster.velY * dt;
+  } else {
+    monster.velY = 0;
+    p.y = Math.floor(p.y) + 0.001;
+  }
+
+  // 한 칸짜리 턱 오르기
+  if (collideX || collideZ) {
+    const dirX = Math.sign(dx);
+    const dirZ = Math.sign(dz);
+
+    const frontX = p.x + dirX * 0.6;
+    const frontZ = p.z + dirZ * 0.6;
+
+    const blockFront = getBlock(
+      Math.floor(frontX),
+      Math.floor(p.y),
+      Math.floor(frontZ)
+    );
+
+    const blockAbove = getBlock(
+      Math.floor(frontX),
+      Math.floor(p.y + 1),
+      Math.floor(frontZ)
+    );
+
+    if (blockFront !== 0 && blockAbove === 0) {
+      p.y += 1;
+    }
+  }
+}
+
+// 매 프레임 몬스터 업데이트
+function updateMonsters(dt){
+  monsterSpawnTimer -= dt;
+
+  // 밤이면 일정 시간마다 좀비 생성
+  if (isNightTime()) {
+    if (monsterSpawnTimer <= 0) {
+      spawnZombieNearPlayer();
+      monsterSpawnTimer = 2.5 + Math.random() * 2.5;
+    }
+  }
+
+  for (let i = monsters.length - 1; i >= 0; i--) {
+    const monster = monsters[i];
+    const p = monster.mesh.position;
+
+    const toPlayer = new THREE.Vector3(
+      player.pos.x - p.x,
+      0,
+      player.pos.z - p.z
+    );
+
+    const dist = toPlayer.length();
+
+    // 낮이 되거나 너무 멀어지면 제거
+    if (!isNightTime() || dist > 70) {
+      scene.remove(monster.mesh);
+
+      monster.mesh.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+      });
+
+      monsters.splice(i, 1);
+      continue;
+    }
+
+    // 피격 색상 복구
+    if (monster.hurtTimer > 0) {
+      monster.hurtTimer -= dt;
+
+      if (monster.hurtTimer <= 0) {
+        monster.mesh.traverse(obj => {
+          if (
+            obj.material &&
+            obj.material.color &&
+            obj.userData.oldColor !== undefined
+          ) {
+            obj.material.color.setHex(obj.userData.oldColor);
+          }
+        });
+      }
+    }
+
+    monster.attackCooldown -= dt;
+
+    // 플레이어가 가까이 있으면 추적
+    if (dist < 45) {
+      toPlayer.normalize();
+
+      const moveSpeed = monster.speed * dt;
+
+      if (dist > 1.35) {
+        monsterTryMove(
+          monster,
+          toPlayer.x * moveSpeed,
+          toPlayer.z * moveSpeed,
+          dt
+        );
+      }
+
+      // 플레이어를 바라보게 회전
+      monster.mesh.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
+
+      // 걷는 애니메이션
+      monster.stepTimer += dt * 7;
+      const swing = Math.sin(monster.stepTimer) * 0.25;
+
+      // children 순서:
+      // 0 몸, 1 머리, 2 왼팔, 3 오른팔, 4 왼다리, 5 오른다리
+      if (monster.mesh.children[4]) {
+        monster.mesh.children[4].rotation.x = swing;
+      }
+
+      if (monster.mesh.children[5]) {
+        monster.mesh.children[5].rotation.x = -swing;
+      }
+
+      // 공격
+      if (dist < 1.6 && monster.attackCooldown <= 0) {
+        damagePlayer(monster.attackDamage);
+        monster.attackCooldown = 1.1;
+      }
+    }
+  }
+}
+
+
+let mouseDown = false, mouseButton = -1;
+
 let mouseDown = false, mouseButton = -1;
 
 renderer.domElement.addEventListener('mousedown', e=>{
   if (!started || panelOpen) return;
   if (document.pointerLockElement !== renderer.domElement) return;
+
   mouseDown = true;
   mouseButton = e.button;
 
-  if (e.button===2){
+  // 좌클릭: 몬스터를 바라보고 있으면 공격
+  if (e.button === 0) {
+    const attacked = tryAttackMonster();
+
+    // 몬스터를 때렸으면 채굴은 하지 않음
+    if (attacked) {
+      mouseDown = false;
+      mouseButton = -1;
+      miningProgress = 0;
+      miningTarget = null;
+      return;
+    }
+  }
+
+  // 우클릭: 블록 설치 또는 제작대 상호작용
+  if (e.button === 2) {
     const hit = raycastBlocks(6);
+
     if (!hit) return;
-    const [x,y,z]=hit.block;
-    const id=getBlock(x,y,z);
-    if (id===7){ openPanel('table'); return; }
+
+    const [x, y, z] = hit.block;
+    const id = getBlock(x, y, z);
+
+    // 제작대 우클릭
+    if (id === 7) {
+      openPanel('table');
+      return;
+    }
+
     if (!hit.place) return;
-    const [px,py,pz]=hit.place;
-    const held=hotbar[selectedSlot];
-    if (!held || BLOCK_COLOR[held.id]===undefined) return;
-    const feet=player.pos.clone();
-    if (px===Math.floor(feet.x) && pz===Math.floor(feet.z) && (py===Math.floor(feet.y)||py===Math.floor(feet.y+1))) return;
-    setBlock(px,py,pz,held.id);
+
+    const [px, py, pz] = hit.place;
+    const held = hotbar[selectedSlot];
+
+    // 블록 아이템이 아니면 설치 불가
+    if (!held || BLOCK_COLOR[held.id] === undefined) {
+      return;
+    }
+
+    const feet = player.pos.clone();
+
+    // 플레이어 몸 위치에는 블록 설치 불가
+    if (
+      px === Math.floor(feet.x) &&
+      pz === Math.floor(feet.z) &&
+      (
+        py === Math.floor(feet.y) ||
+        py === Math.floor(feet.y + 1)
+      )
+    ) {
+      return;
+    }
+
+    setBlock(px, py, pz, held.id);
     removeFromStack(hotbar, selectedSlot, 1);
     renderAll();
-    rebuildChunkAndNeighborsAt(px,pz);
+    rebuildChunkAndNeighborsAt(px, pz);
   }
 });
 document.addEventListener('mouseup', e=>{
@@ -881,7 +1475,7 @@ function updateTargetHighlight(){
 }
 
 // ---------- 낮/밤 사이클 ----------
-const DAY_LENGTH = 300; // 하루(낮+밤) 전체 길이(초)
+const DAY_LENGTH = 60; // 하루(낮+밤) 전체 길이(초)
 let gameTime = DAY_LENGTH*0.25; // 아침부터 시작
 const clockTextEl = document.getElementById('clockText');
 const clockIconEl = document.getElementById('clockIcon');
@@ -919,21 +1513,36 @@ function updateDayNightCycle(dt){
 let frameCount = 0;
 function animate(){
   requestAnimationFrame(animate);
+
   const dt = Math.min(clock.getDelta(), 0.05);
+
   if (started){
     if (!panelOpen) updatePlayer(dt);
+
     updateCamera();
     updateTargetHighlight();
     updateDroppedItems(dt);
     updateDayNightCycle(dt);
+
+    // 몬스터 이동, 추적, 공격, 생성 처리
+    updateMonsters(dt);
+
     if (!panelOpen) updateMining(dt);
+
     updateHandSwing(dt);
+
     frameCount++;
-    if (frameCount % 10 === 0) refreshChunkQueue();
+
+    if (frameCount % 10 === 0) {
+      refreshChunkQueue();
+    }
+
     processChunkQueue();
   }
+
   renderer.render(scene, camera);
- updatePlayerUI()
+
+  updatePlayerUI();
 }
 
 renderAll();
