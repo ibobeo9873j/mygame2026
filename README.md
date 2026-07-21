@@ -715,7 +715,6 @@ function updateDayNightCycle(dt){
   gameTime = (gameTime + dt) % DAY_LENGTH;
   const t = gameTime / DAY_LENGTH; // 0~1
   const angle = t * Math.PI * 2;
-
     const sunDist = 150;
   const sunHeight = Math.sin(angle);
   sunMesh.position.set(Math.cos(angle)*sunDist, sunHeight*sunDist, -50);
