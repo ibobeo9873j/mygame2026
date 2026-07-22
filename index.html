@@ -1476,9 +1476,10 @@ function updateTargetHighlight(){
 }
 
 // ---------- 낮/밤 사이클 ----------
-const DAY_LENGTH = 60; // 하루(낮+밤) 전체 길이(초)
-let gameTime = DAY_LENGTH * 0.65; // 아침부터 시작
-
+const DAY_LENGTH = 60; // 테스트용: 하루 길이 60초
+let gameTime = DAY_LENGTH * 0.65; // 테스트용: 밤 근처에서 시작
+const clockTextEl = document.getElementById('clockText');
+const clockIconEl = document.getElementById('clockIcon');
 function updateDayNightCycle(dt){
   gameTime = (gameTime + dt) % DAY_LENGTH;
   const t = gameTime / DAY_LENGTH; // 0~1
