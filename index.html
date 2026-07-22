@@ -19,8 +19,7 @@
 #healthBar{
     font-size:28px;
     text-shadow:2px 2px 3px black;
-}
- #saveMsg{
+#saveMsg{
     position:fixed;
     top:70px;
     left:50%;
@@ -34,6 +33,54 @@
     display:none;
     text-shadow:1px 1px 2px black;
     pointer-events:none;
+}
+
+#saveMenuOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    z-index:80;
+    display:none;
+    align-items:center;
+    justify-content:center;
+}
+
+#saveMenuBox{
+    width:280px;
+    background:#c6c6c6;
+    border:6px solid #8b8b8b;
+    padding:18px;
+    text-align:center;
+    color:#333;
+    font-family:'Courier New', monospace;
+}
+
+#saveMenuBox h2{
+    margin:0 0 14px 0;
+    font-size:20px;
+}
+
+#saveMenuBox button{
+    display:block;
+    width:100%;
+    margin:8px 0;
+    padding:10px;
+    font-size:15px;
+    cursor:pointer;
+    background:#6b8e3d;
+    color:white;
+    border:4px solid #4a6329;
+    font-family:'Courier New', monospace;
+}
+
+#saveMenuBox button:hover{
+    background:#79a047;
+}
+
+#saveMenuBox p{
+    margin-top:12px;
+    font-size:11px;
+    color:#555;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#87CEEB; font-family:'Courier New',monospace; user-select:none; }
@@ -94,12 +141,26 @@ canvas { display:block; }
 
 <div id="hint">
 E:인벤토리 B:보관함(7x7) 1-9:아이템선택 F5:시점전환<br>
-F2:저장 F3:불러오기 F4:저장삭제<br>
+R:스폰포인트 설정 F6:저장 메뉴<br>
 좌클릭:채굴/공격 우클릭:설치/상호작용<br>
 낮과 밤이 순환합니다
 </div>
 <div id="clockWrap"><div id="clockIcon"></div><span id="clockText">낮</span></div>
+
 <div id="saveMsg"></div>
+
+<div id="saveMenuOverlay">
+  <div id="saveMenuBox">
+    <h2>저장 메뉴</h2>
+    <button id="saveBtn">게임 저장</button>
+    <button id="loadBtn">게임 불러오기</button>
+    <button id="deleteSaveBtn">저장 데이터 삭제</button>
+    <button id="closeSaveMenuBtn">닫기</button>
+    <p>F6 또는 ESC로 닫기</p>
+  </div>
+</div>
+
+<div id="crosshair"></div>
 <div id="crosshair"></div>
 <div id="hud">
     <div id="healthBar"></div>
@@ -586,6 +647,15 @@ function rebuildChunkAndNeighborsAt(x,z){
   player.pos.set(0.5,h+3,0.5);
 })();
 
+// ---------- 스폰포인트 ----------
+let spawnPoint = {
+  x: player.pos.x,
+  y: player.pos.y,
+  z: player.pos.z,
+  yaw: player.yaw,
+  pitch: player.pitch
+};
+
 const HOTBAR_SIZE=9, INV_SIZE=18, BIG_STORAGE_SIZE=49;
 const hotbar = new Array(HOTBAR_SIZE).fill(null);
 const invStorage = new Array(INV_SIZE).fill(null);
@@ -738,6 +808,7 @@ const invPanel=document.getElementById('invPanel');
 const tablePanel=document.getElementById('tablePanel');
 const storagePanel=document.getElementById('storagePanel');
 let panelOpen=null;
+let saveMenuOpen = false;
 function openPanel(which){
   panelOpen=which;
   panelOverlay.style.display='flex';
@@ -767,6 +838,15 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 document.addEventListener('keydown', e=>{
   keys[e.code]=true;
 
+  // 저장 메뉴가 열려 있을 때 ESC 또는 F6으로 닫기
+  if (saveMenuOpen) {
+    if (e.code === 'Escape' || e.code === 'F6') {
+      e.preventDefault();
+      closeSaveMenu();
+    }
+    return;
+  }
+
   if (e.code==='KeyE'){ 
     if (panelOpen) closePanel(); 
     else if (started) openPanel('inv'); 
@@ -786,27 +866,25 @@ document.addEventListener('keydown', e=>{
     e.preventDefault(); 
   }
 
-  // F2 저장
-  if (e.code === 'F2') {
+  // F6: 저장 메뉴 열기
+  if (e.code === 'F6') {
     e.preventDefault();
-    saveGame();
+
+    if (started && !panelOpen) {
+      openSaveMenu();
+    }
   }
 
-  // F3 불러오기
-  if (e.code === 'F3') {
-    e.preventDefault();
-    loadGame();
-  }
-
-  // F4 저장 삭제
-  if (e.code === 'F4') {
-    e.preventDefault();
-    deleteSaveGame();
+  // R: 스폰포인트 설정
+  if (e.code === 'KeyR') {
+    if (started && !panelOpen) {
+      setSpawnPoint();
+    }
   }
 
   const num=parseInt(e.key);
 
-  if (!panelOpen && num>=1 && num<=9){
+  if (!panelOpen && !saveMenuOpen && num>=1 && num<=9){
     selectedSlot=num-1; 
     renderAll(); 
   }
@@ -826,7 +904,9 @@ document.addEventListener('mousemove', e=>{
   player.pitch = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, player.pitch));
 });
 renderer.domElement.addEventListener('click', ()=>{
-  if (started && !panelOpen) renderer.domElement.requestPointerLock();
+  if (started && !panelOpen && !saveMenuOpen) {
+    renderer.domElement.requestPointerLock();
+  }
 });
 
 function getLookDir(){
@@ -1059,15 +1139,33 @@ function damagePlayer(amount){
     respawnPlayer();
   }
 }
+ function setSpawnPoint(){
+  spawnPoint = {
+    x: player.pos.x,
+    y: player.pos.y,
+    z: player.pos.z,
+    yaw: player.yaw,
+    pitch: player.pitch
+  };
+
+  showSaveMessage('스폰포인트 설정 완료');
+}
 
 // 플레이어 리스폰
 function respawnPlayer(){
-  const h = terrainHeight(0, 0);
+  player.pos.set(
+    spawnPoint.x,
+    spawnPoint.y,
+    spawnPoint.z
+  );
 
-  player.pos.set(0.5, h + 3, 0.5);
   player.vel.set(0, 0, 0);
+  player.yaw = spawnPoint.yaw || 0;
+  player.pitch = spawnPoint.pitch || 0;
   player.health = player.maxHealth;
   player.onGround = false;
+
+  showSaveMessage('스폰포인트에서 부활');
 }
 
 // 몬스터에게 데미지 주기
@@ -1379,7 +1477,7 @@ function updateMonsters(dt){
 let mouseDown = false, mouseButton = -1;
 
 renderer.domElement.addEventListener('mousedown', e=>{
-  if (!started || panelOpen) return;
+  if (!started || panelOpen || saveMenuOpen) return;
   if (document.pointerLockElement !== renderer.domElement) return;
 
   mouseDown = true;
@@ -1564,8 +1662,7 @@ const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
 player.height += (targetHeight - player.height) * Math.min(1, dt*10);
 
 if (player.pos.y < -10){
-    player.pos.set(0.5, terrainHeight(0,0)+3, 0.5);
-    player.vel.set(0,0,0);
+    respawnPlayer();
 }
 }
 function updateCamera(){
@@ -1592,7 +1689,10 @@ function updateCamera(){
 }
 
 function updateTargetHighlight(){
-  if (panelOpen){ targetHighlight.visible=false; return; }
+  if (panelOpen || saveMenuOpen){ 
+    targetHighlight.visible=false; 
+    return; 
+  }
   const hit=raycastBlocks(6);
   if (hit){
     targetHighlight.visible=true;
@@ -1691,6 +1791,31 @@ function showSaveMessage(text){
     el.style.display = 'none';
   }, 1800);
 }
+ function openSaveMenu(){
+  if (!started) return;
+
+  saveMenuOpen = true;
+
+  const overlay = document.getElementById('saveMenuOverlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+
+  document.exitPointerLock();
+}
+
+function closeSaveMenu(){
+  saveMenuOpen = false;
+
+  const overlay = document.getElementById('saveMenuOverlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+
+  if (started && !panelOpen) {
+    renderer.domElement.requestPointerLock();
+  }
+}
 
 function cloneStackArray(arr){
   return arr.map(stack => {
@@ -1770,33 +1895,40 @@ function clearMonsters(){
 
 function saveGame(){
   try {
-    const saveData = {
-      version: 1,
+   const saveData = {
+  version: 1,
 
-      player: {
-        x: player.pos.x,
-        y: player.pos.y,
-        z: player.pos.z,
-        vx: player.vel.x,
-        vy: player.vel.y,
-        vz: player.vel.z,
-        yaw: player.yaw,
-        pitch: player.pitch,
-        health: player.health,
-        maxHealth: player.maxHealth
-      },
+  player: {
+    x: player.pos.x,
+    y: player.pos.y,
+    z: player.pos.z,
+    vx: player.vel.x,
+    vy: player.vel.y,
+    vz: player.vel.z,
+    yaw: player.yaw,
+    pitch: player.pitch,
+    health: player.health,
+    maxHealth: player.maxHealth
+  },
 
-      selectedSlot: selectedSlot,
+  spawnPoint: {
+    x: spawnPoint.x,
+    y: spawnPoint.y,
+    z: spawnPoint.z,
+    yaw: spawnPoint.yaw,
+    pitch: spawnPoint.pitch
+  },
 
-      hotbar: cloneStackArray(hotbar),
-      invStorage: cloneStackArray(invStorage),
-      bigStorage: cloneStackArray(bigStorage),
+  selectedSlot: selectedSlot,
 
-      gameTime: gameTime,
+  hotbar: cloneStackArray(hotbar),
+  invStorage: cloneStackArray(invStorage),
+  bigStorage: cloneStackArray(bigStorage),
 
-      // 부순 블록 / 설치한 블록만 저장
-      worldEdits: Array.from(worldEdits.entries())
-    };
+  gameTime: gameTime,
+
+  worldEdits: Array.from(worldEdits.entries())
+};
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 
@@ -1863,10 +1995,21 @@ function loadGame(){
       player.onGround = false;
     }
 
-    // 시간 복구
-    if (typeof saveData.gameTime === 'number') {
-      gameTime = saveData.gameTime;
-    }
+// 시간 복구
+if (typeof saveData.gameTime === 'number') {
+  gameTime = saveData.gameTime;
+}
+
+// 스폰포인트 복구
+if (saveData.spawnPoint) {
+  spawnPoint = {
+    x: saveData.spawnPoint.x,
+    y: saveData.spawnPoint.y,
+    z: saveData.spawnPoint.z,
+    yaw: saveData.spawnPoint.yaw || 0,
+    pitch: saveData.spawnPoint.pitch || 0
+  };
+}
 
     // 인벤토리 복구
     restoreStackArray(hotbar, saveData.hotbar);
@@ -1901,6 +2044,22 @@ function deleteSaveGame(){
   localStorage.removeItem(SAVE_KEY);
   showSaveMessage('저장 데이터 삭제 완료');
 }
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  saveGame();
+});
+
+document.getElementById('loadBtn').addEventListener('click', ()=>{
+  loadGame();
+  closeSaveMenu();
+});
+
+document.getElementById('deleteSaveBtn').addEventListener('click', ()=>{
+  deleteSaveGame();
+});
+
+document.getElementById('closeSaveMenuBtn').addEventListener('click', ()=>{
+  closeSaveMenu();
+});
 let frameCount = 0;
 function animate(){
   requestAnimationFrame(animate);
@@ -1908,21 +2067,22 @@ function animate(){
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (started){
-    if (!panelOpen) updatePlayer(dt);
+  if (!panelOpen && !saveMenuOpen) updatePlayer(dt);
 
-    updateCamera();
-    updateTargetHighlight();
-    updateDroppedItems(dt);
-    updateDayNightCycle(dt);
+  updateCamera();
+  updateTargetHighlight();
+  updateDroppedItems(dt);
+  updateDayNightCycle(dt);
 
-    // 몬스터 이동, 추적, 공격, 생성 처리
+  if (!panelOpen && !saveMenuOpen) {
     if (typeof updateMonsters === 'function') {
       updateMonsters(dt);
     }
+  }
 
-    if (!panelOpen) updateMining(dt);
+  if (!panelOpen && !saveMenuOpen) updateMining(dt);
 
-    updateHandSwing(dt);
+  updateHandSwing(dt);
 
     frameCount++;
 
