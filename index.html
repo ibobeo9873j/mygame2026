@@ -20,6 +20,21 @@
     font-size:28px;
     text-shadow:2px 2px 3px black;
 }
+ #saveMsg{
+    position:fixed;
+    top:70px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:99999;
+    color:white;
+    background:rgba(0,0,0,0.55);
+    padding:8px 16px;
+    border-radius:8px;
+    font-size:14px;
+    display:none;
+    text-shadow:1px 1px 2px black;
+    pointer-events:none;
+}
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#87CEEB; font-family:'Courier New',monospace; user-select:none; }
 canvas { display:block; }
@@ -77,8 +92,14 @@ canvas { display:block; }
 <button id="startBtn">클릭해서 시작하기</button>
 </div>
 
-<div id="hint">E:인벤토리 B:보관함(7x7) 1-9:아이템선택 F5:시점전환<br>좌클릭:채굴 우클릭:설치/상호작용<br>낮과 밤이 순환합니다</div>
+<div id="hint">
+E:인벤토리 B:보관함(7x7) 1-9:아이템선택 F5:시점전환<br>
+F2:저장 F3:불러오기 F4:저장삭제<br>
+좌클릭:채굴/공격 우클릭:설치/상호작용<br>
+낮과 밤이 순환합니다
+</div>
 <div id="clockWrap"><div id="clockIcon"></div><span id="clockText">낮</span></div>
+<div id="saveMsg"></div>
 <div id="crosshair"></div>
 <div id="hud">
     <div id="healthBar"></div>
@@ -236,9 +257,64 @@ function dropForBlock(blockId){
 
 const CHUNK_SIZE = 12, WORLD_HEIGHT = 120, SURFACE_BASE = 100, RENDER_DIST = 3;
 const world = new Map(), chunkData = new Map(), chunkMeshes = new Map();
-function key(x,y,z){ return x+','+y+','+z; }
-function getBlock(x,y,z){ if (y<0||y>=WORLD_HEIGHT) return 0; const v=world.get(key(x,y,z)); return v===undefined?0:v; }
-function setBlock(x,y,z,id){ if (id===0) world.delete(key(x,y,z)); else world.set(key(x,y,z),id); }
+
+// 플레이어가 변경한 블록만 저장하기 위한 Map
+const worldEdits = new Map();
+
+// 지형 자동 생성 중에는 worldEdits에 기록하지 않기 위한 변수
+let suppressWorldEditRecord = false;
+
+function key(x,y,z){ 
+  return x+','+y+','+z; 
+}
+
+function getBlock(x,y,z){ 
+  if (y<0||y>=WORLD_HEIGHT) return 0; 
+  const v=world.get(key(x,y,z)); 
+  return v===undefined?0:v; 
+}
+
+function setBlock(x,y,z,id){ 
+  const k = key(x,y,z);
+
+  if (id===0) {
+    world.delete(k);
+  } else {
+    world.set(k,id);
+  }
+
+  // 자동 지형 생성이 아닐 때만 변경 기록 저장
+  if (!suppressWorldEditRecord) {
+    worldEdits.set(k, id);
+  }
+}
+
+// 저장된 블록 변경사항을 실제 월드에 적용
+function applyWorldEditRaw(k, id){
+  if (id === 0) {
+    world.delete(k);
+  } else {
+    world.set(k, id);
+  }
+}
+
+// 특정 청크에 해당하는 저장된 변경사항 적용
+function applyWorldEditsToChunk(cx, cz){
+  const minX = cx * CHUNK_SIZE;
+  const maxX = minX + CHUNK_SIZE - 1;
+  const minZ = cz * CHUNK_SIZE;
+  const maxZ = minZ + CHUNK_SIZE - 1;
+
+  for (const [k, id] of worldEdits.entries()) {
+    const parts = k.split(',').map(Number);
+    const x = parts[0];
+    const z = parts[2];
+
+    if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+      applyWorldEditRaw(k, id);
+    }
+  }
+}
 
 function hash2(x,y){ let h=(x*374761393+y*668265263)|0; h=(h^(h>>13))*1274126177; h=h^(h>>16); return ((h>>>0)%100000)/100000; }
 function smooth(t){ return t*t*(3-2*t); }
@@ -265,38 +341,66 @@ function oreForStone(x,y,z){
 function generateChunkData(cx,cz){
   const ck = cx+','+cz;
   if (chunkData.has(ck)) return;
+
   chunkData.set(ck,true);
+
   const startX=cx*CHUNK_SIZE, startZ=cz*CHUNK_SIZE;
+
+  // 자동 지형 생성 중에는 저장 기록을 남기지 않음
+  const oldSuppress = suppressWorldEditRecord;
+  suppressWorldEditRecord = true;
+
   for (let lx=0; lx<CHUNK_SIZE; lx++){
     for (let lz=0; lz<CHUNK_SIZE; lz++){
       const x=startX+lx, z=startZ+lz;
       const h = terrainHeight(x,z);
+
       for (let y=0; y<=h; y++){
         let id;
+
         if (y===0) id=8;
         else if (y===h) id=1;
         else if (y>=h-3) id=2;
         else id=oreForStone(x,y,z);
+
         setBlock(x,y,z,id);
       }
-      if (lx>1 && lx<CHUNK_SIZE-2 && lz>1 && lz<CHUNK_SIZE-2 && treeChance(x,z)>0.975){
+
+      if (
+        lx>1 && lx<CHUNK_SIZE-2 && 
+        lz>1 && lz<CHUNK_SIZE-2 && 
+        treeChance(x,z)>0.975
+      ){
         const trunkH = 3+Math.floor(treeChance(x+1,z+1)*2);
-        for (let ty=1; ty<=trunkH; ty++) setBlock(x,h+ty,z,4);
+
+        for (let ty=1; ty<=trunkH; ty++) {
+          setBlock(x,h+ty,z,4);
+        }
+
         for (let dx=-2; dx<=2; dx++){
           for (let dz=-2; dz<=2; dz++){
             for (let dy=trunkH-1; dy<=trunkH+1; dy++){
               if (Math.abs(dx)===2 && Math.abs(dz)===2) continue;
               if (dx===0 && dz===0 && dy<trunkH+1) continue;
-              if (getBlock(x+dx,h+dy,z+dz)===0) setBlock(x+dx,h+dy,z+dz,5);
+
+              if (getBlock(x+dx,h+dy,z+dz)===0) {
+                setBlock(x+dx,h+dy,z+dz,5);
+              }
             }
           }
         }
+
         setBlock(x,h+trunkH+2,z,5);
       }
     }
   }
-}
 
+  // 자동 생성 기록 차단 해제
+  suppressWorldEditRecord = oldSuppress;
+
+  // 저장된 변경사항이 있으면 이 청크에 적용
+  applyWorldEditsToChunk(cx, cz);
+}
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 scene.fog = new THREE.Fog(0x87CEEB,40,95);
@@ -662,12 +766,50 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 });
 document.addEventListener('keydown', e=>{
   keys[e.code]=true;
-  if (e.code==='KeyE'){ if (panelOpen) closePanel(); else if (started) openPanel('inv'); }
-  if (e.code==='KeyB'){ if (panelOpen) closePanel(); else if (started) openPanel('storage'); }
-  if (e.code==='Escape' && panelOpen) closePanel();
-  if (e.code==='F5'){ thirdPerson=!thirdPerson; e.preventDefault(); }
+
+  if (e.code==='KeyE'){ 
+    if (panelOpen) closePanel(); 
+    else if (started) openPanel('inv'); 
+  }
+
+  if (e.code==='KeyB'){ 
+    if (panelOpen) closePanel(); 
+    else if (started) openPanel('storage'); 
+  }
+
+  if (e.code==='Escape' && panelOpen) {
+    closePanel();
+  }
+
+  if (e.code==='F5'){
+    thirdPerson=!thirdPerson; 
+    e.preventDefault(); 
+  }
+
+  // F2 저장
+  if (e.code === 'F2') {
+    e.preventDefault();
+    saveGame();
+  }
+
+  // F3 불러오기
+  if (e.code === 'F3') {
+    e.preventDefault();
+    loadGame();
+  }
+
+  // F4 저장 삭제
+  if (e.code === 'F4') {
+    e.preventDefault();
+    deleteSaveGame();
+  }
+
   const num=parseInt(e.key);
-  if (!panelOpen && num>=1 && num<=9){ selectedSlot=num-1; renderAll(); }
+
+  if (!panelOpen && num>=1 && num<=9){
+    selectedSlot=num-1; 
+    renderAll(); 
+  }
 });
 document.addEventListener('keyup', e=> keys[e.code]=false);
 
@@ -1532,7 +1674,233 @@ function updateDayNightCycle(dt){
     clockIconEl.style.background = '#ff8f4d';
   }
 }
+// ---------- 저장 / 불러오기 시스템 ----------
+const SAVE_KEY = 'voxel_craft_save_v1';
 
+function showSaveMessage(text){
+  const el = document.getElementById('saveMsg');
+
+  if (!el) return;
+
+  el.textContent = text;
+  el.style.display = 'block';
+
+  clearTimeout(showSaveMessage.timer);
+
+  showSaveMessage.timer = setTimeout(()=>{
+    el.style.display = 'none';
+  }, 1800);
+}
+
+function cloneStackArray(arr){
+  return arr.map(stack => {
+    if (!stack) return null;
+
+    return {
+      id: stack.id,
+      count: stack.count
+    };
+  });
+}
+
+function restoreStackArray(target, saved){
+  for (let i=0; i<target.length; i++){
+    const stack = saved && saved[i] ? saved[i] : null;
+
+    if (stack) {
+      target[i] = {
+        id: stack.id,
+        count: stack.count
+      };
+    } else {
+      target[i] = null;
+    }
+  }
+}
+
+function disposeObject3D(obj){
+  obj.traverse(child => {
+    if (child.geometry) {
+      child.geometry.dispose();
+    }
+
+    if (child.material) {
+      if (Array.isArray(child.material)) {
+        child.material.forEach(mat => mat.dispose());
+      } else {
+        child.material.dispose();
+      }
+    }
+  });
+}
+
+function clearRenderedChunksAndWorld(){
+  for (const mesh of chunkMeshes.values()) {
+    scene.remove(mesh);
+    disposeObject3D(mesh);
+  }
+
+  chunkMeshes.clear();
+  chunkData.clear();
+  world.clear();
+
+  chunkQueue = [];
+  queuedSet.clear();
+}
+
+function clearDroppedItems(){
+  for (const item of droppedItems) {
+    scene.remove(item.mesh);
+    disposeObject3D(item.mesh);
+  }
+
+  droppedItems.length = 0;
+}
+
+function clearMonsters(){
+  if (typeof monsters === 'undefined') return;
+
+  for (const monster of monsters) {
+    scene.remove(monster.mesh);
+    disposeObject3D(monster.mesh);
+  }
+
+  monsters.length = 0;
+}
+
+function saveGame(){
+  try {
+    const saveData = {
+      version: 1,
+
+      player: {
+        x: player.pos.x,
+        y: player.pos.y,
+        z: player.pos.z,
+        vx: player.vel.x,
+        vy: player.vel.y,
+        vz: player.vel.z,
+        yaw: player.yaw,
+        pitch: player.pitch,
+        health: player.health,
+        maxHealth: player.maxHealth
+      },
+
+      selectedSlot: selectedSlot,
+
+      hotbar: cloneStackArray(hotbar),
+      invStorage: cloneStackArray(invStorage),
+      bigStorage: cloneStackArray(bigStorage),
+
+      gameTime: gameTime,
+
+      // 부순 블록 / 설치한 블록만 저장
+      worldEdits: Array.from(worldEdits.entries())
+    };
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+
+    showSaveMessage('게임 저장 완료');
+    console.log('게임 저장 완료', saveData);
+  } catch (err) {
+    console.error(err);
+    showSaveMessage('저장 실패');
+  }
+}
+
+function loadGame(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+
+    if (!raw) {
+      showSaveMessage('저장된 데이터가 없습니다');
+      return;
+    }
+
+    const saveData = JSON.parse(raw);
+
+    if (!saveData || saveData.version !== 1) {
+      showSaveMessage('저장 데이터 형식이 맞지 않습니다');
+      return;
+    }
+
+    // 기존 몬스터와 드롭 아이템 제거
+    clearMonsters();
+    clearDroppedItems();
+
+    // 기존 월드와 청크 초기화
+    clearRenderedChunksAndWorld();
+
+    // 저장된 블록 변경사항 복구
+    worldEdits.clear();
+
+    if (Array.isArray(saveData.worldEdits)) {
+      for (const entry of saveData.worldEdits) {
+        const k = entry[0];
+        const id = entry[1];
+        worldEdits.set(k, id);
+      }
+    }
+
+    // 플레이어 복구
+    if (saveData.player) {
+      player.pos.set(
+        saveData.player.x,
+        saveData.player.y,
+        saveData.player.z
+      );
+
+      player.vel.set(
+        saveData.player.vx || 0,
+        saveData.player.vy || 0,
+        saveData.player.vz || 0
+      );
+
+      player.yaw = saveData.player.yaw || 0;
+      player.pitch = saveData.player.pitch || 0;
+      player.health = saveData.player.health ?? player.maxHealth;
+      player.maxHealth = saveData.player.maxHealth || 20;
+      player.onGround = false;
+    }
+
+    // 시간 복구
+    if (typeof saveData.gameTime === 'number') {
+      gameTime = saveData.gameTime;
+    }
+
+    // 인벤토리 복구
+    restoreStackArray(hotbar, saveData.hotbar);
+    restoreStackArray(invStorage, saveData.invStorage);
+    restoreStackArray(bigStorage, saveData.bigStorage);
+
+    selectedSlot = saveData.selectedSlot || 0;
+
+    // 플레이어 주변 월드 다시 생성
+    ensureDataAroundPlayer();
+    refreshChunkQueue();
+
+    // 처음 불러왔을 때 바로 보이도록 여러 청크 처리
+    for (let i=0; i<80; i++) {
+      processChunkQueue();
+    }
+
+    renderAll();
+    updateCamera();
+    updateDayNightCycle(0);
+    updatePlayerUI();
+
+    showSaveMessage('게임 불러오기 완료');
+    console.log('게임 불러오기 완료', saveData);
+  } catch (err) {
+    console.error(err);
+    showSaveMessage('불러오기 실패');
+  }
+}
+
+function deleteSaveGame(){
+  localStorage.removeItem(SAVE_KEY);
+  showSaveMessage('저장 데이터 삭제 완료');
+}
 let frameCount = 0;
 function animate(){
   requestAnimationFrame(animate);
