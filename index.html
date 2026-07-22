@@ -755,10 +755,6 @@ let targetHighlight;
   scene.add(targetHighlight);
 })();
 
-// ---------- 낮/밤 시간 기본 변수 ----------
-const DAY_LENGTH = 60;
-let gameTime = DAY_LENGTH * 0.65;
-
 // ---------- 몬스터 시스템 ----------
 const monsters = [];
 const MAX_MONSTERS = 10;
@@ -1476,16 +1472,16 @@ function updateTargetHighlight(){
 }
 
 // ---------- 낮/밤 사이클 ----------
-const DAY_LENGTH = 60; // 테스트용: 하루 길이 60초
-let gameTime = DAY_LENGTH * 0.65; // 테스트용: 밤 근처에서 시작
 const clockTextEl = document.getElementById('clockText');
 const clockIconEl = document.getElementById('clockIcon');
+ 
 function updateDayNightCycle(dt){
   gameTime = (gameTime + dt) % DAY_LENGTH;
   const t = gameTime / DAY_LENGTH; // 0~1
   const angle = t * Math.PI * 2;
-    const sunDist = 150;
+  const sunDist = 150;
   const sunHeight = Math.sin(angle);
+ 
   sunMesh.position.set(Math.cos(angle)*sunDist, sunHeight*sunDist, -50);
   moonMesh.position.set(-Math.cos(angle)*sunDist, -sunHeight*sunDist, -50);
 
@@ -1505,9 +1501,18 @@ function updateDayNightCycle(dt){
   scene.background = skyColor;
   scene.fog.color = skyColor;
 
-  if (dayFactor > 0.15){ clockTextEl.textContent='낮'; clockIconEl.style.background='#ffd34d'; }
-  else if (nightFactor > 0.15){ clockTextEl.textContent='밤'; clockIconEl.style.background='#8fa8ff'; }
-  else { clockTextEl.textContent='해질녘'; clockIconEl.style.background='#ff8f4d'; }
+  if (dayFactor > 0.15){
+    clockTextEl.textContent='낮';
+    clockIconEl.style.background='#ffd34d';
+  }
+  else if (nightFactor > 0.15){
+    clockTextEl.textContent='밤';
+    clockIconEl.style.background='#8fa8ff';
+  }
+  else {
+    clockTextEl.textContent='해질녘';
+    clockIconEl.style.background='#ff8f4d';
+  }
 }
 
 let frameCount = 0;
