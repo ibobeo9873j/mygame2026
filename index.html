@@ -155,7 +155,6 @@ R:스폰포인트 설정 F6:저장 메뉴<br>
 <div id="saveMsg"></div>
 
 <div id="crosshair"></div>
-<div id="crosshair"></div>
 <div id="hud">
     <div id="healthBar"></div>
     <div id="hotbar"></div>
@@ -818,7 +817,6 @@ const storagePanel=document.getElementById('storagePanel');
 const savePanel=document.getElementById('savePanel');
 
 let panelOpen=null;
-let saveMenuOpen = false;
 function openPanel(which){
   panelOpen=which;
   panelOverlay.style.display='flex';
@@ -1807,31 +1805,6 @@ function showSaveMessage(text){
     el.style.display = 'none';
   }, 1800);
 }
- function openSaveMenu(){
-  if (!started) return;
-
-  saveMenuOpen = true;
-
-  const overlay = document.getElementById('saveMenuOverlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-  }
-
-  document.exitPointerLock();
-}
-
-function closeSaveMenu(){
-  saveMenuOpen = false;
-
-  const overlay = document.getElementById('saveMenuOverlay');
-  if (overlay) {
-    overlay.style.display = 'none';
-  }
-
-  if (started && !panelOpen) {
-    renderer.domElement.requestPointerLock();
-  }
-}
 
 function cloneStackArray(arr){
   return arr.map(stack => {
@@ -2032,16 +2005,18 @@ if (saveData.spawnPoint) {
     restoreStackArray(invStorage, saveData.invStorage);
     restoreStackArray(bigStorage, saveData.bigStorage);
 
-    selectedSlot = saveData.selectedSlot || 0;
+   selectedSlot = Number.isInteger(saveData.selectedSlot)
+  ? Math.max(0, Math.min(HOTBAR_SIZE - 1, saveData.selectedSlot))
+  : 0;
 
     // 플레이어 주변 월드 다시 생성
     ensureDataAroundPlayer();
     refreshChunkQueue();
 
     // 처음 불러왔을 때 바로 보이도록 여러 청크 처리
-    for (let i=0; i<80; i++) {
-      processChunkQueue();
-    }
+   for (let i=0; i<12; i++) {
+  processChunkQueue();
+}
 
     renderAll();
     updateCamera();
@@ -2060,43 +2035,49 @@ function deleteSaveGame(){
   localStorage.removeItem(SAVE_KEY);
   showSaveMessage('저장 데이터 삭제 완료');
 }
-document.getElementById('saveBtn').addEventListener('click', ()=>{
-  saveGame();
-});
+ 
+function bindSavePanelButtons(){
+  const saveButton = document.getElementById('saveMenuSaveBtn');
+  const loadButton = document.getElementById('saveMenuLoadBtn');
+  const deleteButton = document.getElementById('saveMenuDeleteBtn');
+  const spawnButton = document.getElementById('saveMenuSpawnBtn');
+  const closeButton = document.getElementById('saveMenuCloseBtn');
 
-document.getElementById('loadBtn').addEventListener('click', ()=>{
-  loadGame();
-  closeSaveMenu();
-});
+  if (
+    !saveButton ||
+    !loadButton ||
+    !deleteButton ||
+    !spawnButton ||
+    !closeButton
+  ) {
+    console.error('저장 패널 버튼을 찾을 수 없습니다.');
+    return;
+  }
 
-document.getElementById('deleteSaveBtn').addEventListener('click', ()=>{
-  deleteSaveGame();
-});
+  saveButton.addEventListener('click', ()=>{
+    saveGame();
+  });
 
-document.getElementById('closeSaveMenuBtn').addEventListener('click', ()=>{
-  closeSaveMenu();
-});
- document.getElementById('saveMenuSaveBtn').addEventListener('click', ()=>{
-  saveGame();
-});
+  loadButton.addEventListener('click', ()=>{
+    loadGame();
+    closePanel();
+  });
 
-document.getElementById('saveMenuLoadBtn').addEventListener('click', ()=>{
-  loadGame();
-  closePanel();
-});
+  deleteButton.addEventListener('click', ()=>{
+    deleteSaveGame();
+  });
 
-document.getElementById('saveMenuDeleteBtn').addEventListener('click', ()=>{
-  deleteSaveGame();
-});
-
-document.getElementById('saveMenuSpawnBtn').addEventListener('click', ()=>{
+  spawnButton.addEventListener('click', ()=>{
   setSpawnPoint();
-});
-
-document.getElementById('saveMenuCloseBtn').addEventListener('click', ()=>{
   closePanel();
 });
-let frameCount = 0;
+
+  closeButton.addEventListener('click', ()=>{
+    closePanel();
+  });
+}
+
+bindSavePanelButtons();ameCount = 0;
 function animate(){
   requestAnimationFrame(animate);
 
@@ -2109,11 +2090,54 @@ function animate(){
   updateDroppedItems(dt);
   updateDayNightCycle(dt);
 
-  if (!panelOpen && !saveMenuOpen) {
-    if (typeof updateMonsters === 'function') {
-      updateMonsters(dt);
+let frameCount = 0;
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (started){
+    // 인벤토리, 보관함, 제작대, 저장 메뉴가 열리면 이동 정지
+    if (!panelOpen) {
+      updatePlayer(dt);
     }
+
+    updateCamera();
+    updateTargetHighlight();
+    updateDroppedItems(dt);
+    updateDayNightCycle(dt);
+
+    // 어떤 패널도 열리지 않았을 때만 몬스터와 채굴 업데이트
+    if (!panelOpen) {
+      if (typeof updateMonsters === 'function') {
+        updateMonsters(dt);
+      }
+
+      updateMining(dt);
+    } else {
+      // 패널을 열었을 때 진행 중이던 채굴 취소
+      mouseDown = false;
+      mouseButton = -1;
+      miningProgress = 0;
+      miningTarget = null;
+      isMining = false;
+    }
+
+    updateHandSwing(dt);
+
+    frameCount++;
+
+    if (frameCount % 10 === 0) {
+      refreshChunkQueue();
+    }
+
+    processChunkQueue();
   }
+
+  renderer.render(scene, camera);
+  updatePlayerUI();
+}
 
   if (!panelOpen && !saveMenuOpen) updateMining(dt);
 
