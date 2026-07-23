@@ -34,25 +34,30 @@
     text-shadow:1px 1px 2px black;
     pointer-events:none;
 }
-
-#saveMenuOverlay{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.55);
-    z-index:80;
-    display:none;
-    align-items:center;
-    justify-content:center;
+ #savePanel{
+    min-width:280px;
+    text-align:center;
 }
 
-#saveMenuBox{
-    width:280px;
-    background:#c6c6c6;
-    border:6px solid #8b8b8b;
-    padding:18px;
-    text-align:center;
-    color:#333;
+#saveMenuButtons{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:12px;
+}
+
+#saveMenuButtons button{
+    padding:10px;
+    font-size:14px;
+    cursor:pointer;
+    background:#6b8e3d;
+    color:white;
+    border:4px solid #4a6329;
     font-family:'Courier New', monospace;
+}
+
+#saveMenuButtons button:hover{
+    background:#79a047;
 }
 
 #saveMenuBox h2{
@@ -149,17 +154,6 @@ R:스폰포인트 설정 F6:저장 메뉴<br>
 
 <div id="saveMsg"></div>
 
-<div id="saveMenuOverlay">
-  <div id="saveMenuBox">
-    <h2>저장 메뉴</h2>
-    <button id="saveBtn">게임 저장</button>
-    <button id="loadBtn">게임 불러오기</button>
-    <button id="deleteSaveBtn">저장 데이터 삭제</button>
-    <button id="closeSaveMenuBtn">닫기</button>
-    <p>F6 또는 ESC로 닫기</p>
-  </div>
-</div>
-
 <div id="crosshair"></div>
 <div id="crosshair"></div>
 <div id="hud">
@@ -196,6 +190,20 @@ R:스폰포인트 설정 F6:저장 메뉴<br>
 <div id="recipeMsg"></div>
 <div class="rowgap grid grid9" id="hotbarMirror2"></div>
 <div id="closeHint">E 또는 ESC 로 닫기</div>
+</div>
+
+<div class="panel" id="savePanel" style="display:none;">
+  <h2>저장 메뉴</h2>
+
+  <div id="saveMenuButtons">
+    <button id="saveMenuSaveBtn">게임 저장</button>
+    <button id="saveMenuLoadBtn">게임 불러오기</button>
+    <button id="saveMenuDeleteBtn">저장 데이터 삭제</button>
+    <button id="saveMenuSpawnBtn">현재 위치를 스폰포인트로 설정</button>
+    <button id="saveMenuCloseBtn">닫기</button>
+  </div>
+
+  <div id="closeHint">F6 또는 ESC 로 닫기</div>
 </div>
 </div>
 
@@ -655,7 +663,7 @@ let spawnPoint = {
   yaw: player.yaw,
   pitch: player.pitch
 };
-
+ 
 const HOTBAR_SIZE=9, INV_SIZE=18, BIG_STORAGE_SIZE=49;
 const hotbar = new Array(HOTBAR_SIZE).fill(null);
 const invStorage = new Array(INV_SIZE).fill(null);
@@ -807,14 +815,19 @@ const panelOverlay=document.getElementById('panelOverlay');
 const invPanel=document.getElementById('invPanel');
 const tablePanel=document.getElementById('tablePanel');
 const storagePanel=document.getElementById('storagePanel');
+const savePanel=document.getElementById('savePanel');
+
 let panelOpen=null;
 let saveMenuOpen = false;
 function openPanel(which){
   panelOpen=which;
   panelOverlay.style.display='flex';
+
   invPanel.style.display = which==='inv'?'block':'none';
   tablePanel.style.display = which==='table'?'block':'none';
   storagePanel.style.display = which==='storage'?'block':'none';
+  savePanel.style.display = which==='save'?'block':'none';
+
   document.exitPointerLock();
   renderAll();
 }
@@ -838,45 +851,48 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 document.addEventListener('keydown', e=>{
   keys[e.code]=true;
 
-  // 저장 메뉴가 열려 있을 때 ESC 또는 F6으로 닫기
-  if (saveMenuOpen) {
-    if (e.code === 'Escape' || e.code === 'F6') {
-      e.preventDefault();
-      closeSaveMenu();
+  // E: 인벤토리 열기/닫기
+  if (e.code==='KeyE'){
+    if (panelOpen) {
+      closePanel();
+    } else if (started) {
+      openPanel('inv');
     }
-    return;
   }
 
-  if (e.code==='KeyE'){ 
-    if (panelOpen) closePanel(); 
-    else if (started) openPanel('inv'); 
+  // B: 보관함 열기/닫기
+  if (e.code==='KeyB'){
+    if (panelOpen) {
+      closePanel();
+    } else if (started) {
+      openPanel('storage');
+    }
   }
 
-  if (e.code==='KeyB'){ 
-    if (panelOpen) closePanel(); 
-    else if (started) openPanel('storage'); 
+  // F6: 저장 메뉴 열기/닫기
+  if (e.code==='F6'){
+    e.preventDefault();
+
+    if (panelOpen === 'save') {
+      closePanel();
+    } else if (!panelOpen && started) {
+      openPanel('save');
+    }
   }
 
+  // ESC: 열린 패널 닫기
   if (e.code==='Escape' && panelOpen) {
     closePanel();
   }
 
+  // F5: 시점 전환
   if (e.code==='F5'){
-    thirdPerson=!thirdPerson; 
-    e.preventDefault(); 
-  }
-
-  // F6: 저장 메뉴 열기
-  if (e.code === 'F6') {
+    thirdPerson=!thirdPerson;
     e.preventDefault();
-
-    if (started && !panelOpen) {
-      openSaveMenu();
-    }
   }
 
-  // R: 스폰포인트 설정
-  if (e.code === 'KeyR') {
+  // R: 현재 위치를 스폰포인트로 설정
+  if (e.code==='KeyR'){
     if (started && !panelOpen) {
       setSpawnPoint();
     }
@@ -884,9 +900,9 @@ document.addEventListener('keydown', e=>{
 
   const num=parseInt(e.key);
 
-  if (!panelOpen && !saveMenuOpen && num>=1 && num<=9){
-    selectedSlot=num-1; 
-    renderAll(); 
+  if (!panelOpen && num>=1 && num<=9){
+    selectedSlot=num-1;
+    renderAll();
   }
 });
 document.addEventListener('keyup', e=> keys[e.code]=false);
@@ -904,9 +920,9 @@ document.addEventListener('mousemove', e=>{
   player.pitch = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, player.pitch));
 });
 renderer.domElement.addEventListener('click', ()=>{
-  if (started && !panelOpen && !saveMenuOpen) {
-    renderer.domElement.requestPointerLock();
-  }
+ if (started && !panelOpen) {
+  renderer.domElement.requestPointerLock();
+}
 });
 
 function getLookDir(){
@@ -1139,7 +1155,7 @@ function damagePlayer(amount){
     respawnPlayer();
   }
 }
- function setSpawnPoint(){
+function setSpawnPoint(){
   spawnPoint = {
     x: player.pos.x,
     y: player.pos.y,
@@ -1150,7 +1166,7 @@ function damagePlayer(amount){
 
   showSaveMessage('스폰포인트 설정 완료');
 }
-
+ 
 // 플레이어 리스폰
 function respawnPlayer(){
   player.pos.set(
@@ -1477,7 +1493,7 @@ function updateMonsters(dt){
 let mouseDown = false, mouseButton = -1;
 
 renderer.domElement.addEventListener('mousedown', e=>{
-  if (!started || panelOpen || saveMenuOpen) return;
+  if (!started || panelOpen) return;
   if (document.pointerLockElement !== renderer.domElement) return;
 
   mouseDown = true;
@@ -1689,10 +1705,10 @@ function updateCamera(){
 }
 
 function updateTargetHighlight(){
-  if (panelOpen || saveMenuOpen){ 
-    targetHighlight.visible=false; 
-    return; 
-  }
+if (panelOpen){
+  targetHighlight.visible=false;
+  return;
+}
   const hit=raycastBlocks(6);
   if (hit){
     targetHighlight.visible=true;
@@ -1895,7 +1911,7 @@ function clearMonsters(){
 
 function saveGame(){
   try {
-   const saveData = {
+  const saveData = {
   version: 1,
 
   player: {
@@ -1929,7 +1945,7 @@ function saveGame(){
 
   worldEdits: Array.from(worldEdits.entries())
 };
-
+   
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 
     showSaveMessage('게임 저장 완료');
@@ -2060,6 +2076,26 @@ document.getElementById('deleteSaveBtn').addEventListener('click', ()=>{
 document.getElementById('closeSaveMenuBtn').addEventListener('click', ()=>{
   closeSaveMenu();
 });
+ document.getElementById('saveMenuSaveBtn').addEventListener('click', ()=>{
+  saveGame();
+});
+
+document.getElementById('saveMenuLoadBtn').addEventListener('click', ()=>{
+  loadGame();
+  closePanel();
+});
+
+document.getElementById('saveMenuDeleteBtn').addEventListener('click', ()=>{
+  deleteSaveGame();
+});
+
+document.getElementById('saveMenuSpawnBtn').addEventListener('click', ()=>{
+  setSpawnPoint();
+});
+
+document.getElementById('saveMenuCloseBtn').addEventListener('click', ()=>{
+  closePanel();
+});
 let frameCount = 0;
 function animate(){
   requestAnimationFrame(animate);
@@ -2067,8 +2103,7 @@ function animate(){
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (started){
-  if (!panelOpen && !saveMenuOpen) updatePlayer(dt);
-
+  if (!panelOpen) updatePlayer(dt);
   updateCamera();
   updateTargetHighlight();
   updateDroppedItems(dt);
