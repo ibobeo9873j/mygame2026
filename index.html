@@ -1114,7 +1114,10 @@ function damagePlayer(amount){
 
   if (player.health <= 0) {
     respawnPlayer();
+    return true;
   }
+
+  return false;
 }
 function setSpawnPoint(){
   spawnPoint = {
@@ -1603,6 +1606,7 @@ function updateHandSwing(dt){
 }
   
 function updatePlayer(dt){
+  const wasOnGround = player.onGround;
   const forward=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
   const right=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
   let move=new THREE.Vector3();
@@ -1622,18 +1626,34 @@ function updatePlayer(dt){
 
   player.vel.y -= 20*dt;
   if (player.vel.y < -30) player.vel.y=-30;
- if (keys['Space'] && player.onGround){
+
+  if (keys['Space'] && player.onGround){
     player.vel.y = 7.2;
     player.onGround = false;
     player.fallStartY = player.pos.y;
-}
+  }
 
-if (!player.onGround) {
-    player.tookFallDamage = false;
-}
   tryMove('x', move.x);
-tryMove('z', move.z);
-tryMove('y', player.vel.y*dt);
+  tryMove('z', move.z);
+  tryMove('y', player.vel.y*dt);
+
+  if (!player.onGround) {
+    player.fallStartY = Math.max(player.fallStartY, player.pos.y);
+    player.tookFallDamage = false;
+  } else if (!wasOnGround && !player.tookFallDamage) {
+    const fallDistance = Math.max(0, player.fallStartY - player.pos.y);
+    const damage = Math.floor(fallDistance - 3);
+
+    if (damage > 0) {
+      const died = damagePlayer(damage);
+      if (!died) showSaveMessage(`낙하 피해: ${damage}`);
+    }
+
+    player.tookFallDamage = true;
+    player.fallStartY = player.pos.y;
+  } else {
+    player.fallStartY = player.pos.y;
+  }
 
 const targetHeight = player.crouching ? CROUCH_HEIGHT : STAND_HEIGHT;
 player.height += (targetHeight - player.height) * Math.min(1, dt*10);
